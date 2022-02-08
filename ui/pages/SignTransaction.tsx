@@ -7,6 +7,7 @@ import {
   selectIsTransactionSigned,
   selectTransactionData,
   signTransaction,
+  TransactionConstructionStatus,
 } from "@tallyho/tally-background/redux-slices/transaction-construction"
 import { getAccountTotal } from "@tallyho/tally-background/redux-slices/selectors"
 import { parseERC20Tx } from "@tallyho/tally-background/lib/erc20"
@@ -73,6 +74,11 @@ export default function SignTransaction({
       transactionConstruction.broadcastOnSign ?? false
   )
 
+  const isTransactionMissingOrRejected = useBackgroundSelector(
+    ({ transactionConstruction }) =>
+      transactionConstruction.status === TransactionConstructionStatus.Idle
+  )
+
   const signerAccountTotal = useBackgroundSelector((state) => {
     if (typeof transactionDetails !== "undefined") {
       return getAccountTotal(state, transactionDetails.from)
@@ -110,6 +116,12 @@ export default function SignTransaction({
     dispatch,
   ])
 
+  useEffect(() => {
+    if (isTransactionMissingOrRejected) {
+      history.goBack()
+    }
+  }, [history, isTransactionMissingOrRejected])
+
   const isLedgerSigning = signerAccountTotal?.signingMethod?.type === "ledger"
 
   const signingLedgerState = useSigningLedgerState(
@@ -133,7 +145,6 @@ export default function SignTransaction({
 
   const handleReject = async () => {
     await dispatch(rejectTransactionSignature())
-    history.goBack()
   }
   const handleConfirm = async () => {
     if (isTransactionDataReady && transactionDetails) {
